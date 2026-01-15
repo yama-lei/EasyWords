@@ -1,0 +1,21 @@
+{
+  "mdx_paths": [],
+  "tts_engine": "sapi5",
+  "tts_voice": "",
+  "tts_speed": 1.0,
+  "auto_fill_on_add": true,
+  "auto_play_on_review": true,
+  "cache_audio": true,
+  "auto_create_note_type": false,
+  "auto_generate_audio_on_add": true,
+  "field_mappings": {
+    "EasyWords Vocabulary": {
+      "Word": "Word",
+      "Phonetic": "Phonetic",
+      "Definition": "Definition",
+      "Example": "Example",
+      "Audio": "Audio"
+    }
+  },
+  "online_dictionaries": []
+}

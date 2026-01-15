@@ -1,0 +1,11 @@
+{
+  "package": "easyWords",
+  "name": "EasyWords - Vocabulary Builder",
+  "version": "1.0.0",
+  "author": "EasyWords Developer",
+  "description": "Automatically add phonetics, definitions, examples and TTS audio to vocabulary cards using MDX dictionaries. Supports batch processing and auto-playback during review.",
+  "homepage": "",
+  "conflicts": [],
+  "min_point_version": 50,
+  "max_point_version": 0
+}
