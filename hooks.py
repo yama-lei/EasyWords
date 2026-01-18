@@ -6,7 +6,6 @@ Anki hooks integration for EasyWords add-on
 import aqt
 from aqt import gui_hooks, mw
 from aqt.qt import QAction, QMenu
-from aqt.utils import showInfo
 import weakref
 
 from .config import config
@@ -283,124 +282,124 @@ def on_editor_did_unfocus_field(changed: bool, note, current_field_idx: int):
 
 
 def fill_current_note(editor):
-    """Fill the current note being edited"""
+    """Fill the current note being edited - seamless interaction"""
     import logging
-    
+    from aqt.utils import tooltip, showWarning
+
     logger = logging.getLogger(__name__)
-    
+
     try:
         if not editor.note:
             logger.warning("No note in editor")
+            tooltip("No note to fill", parent=editor.widget)
             return
-        
+
         from .note_type import get_mapped_fields
-        
+
         # Check if note has field mapping configured
         mapping = get_mapped_fields(editor.note)
         if not mapping:
-            showInfo("This note type is not configured for EasyWords.\n\n"
-                    "Please configure field mappings in:\n"
-                    "Tools → EasyWords Configuration → Configure Field Mappings")
+            tooltip("Note type not configured for EasyWords", parent=editor.widget)
             return
-        
+
         fill_note_fields(editor.note, flush=False)
         editor.loadNote()
-        
+        tooltip("✓ Fields filled", parent=editor.widget)
+
     except Exception as e:
         logger.error(f"Failed to fill note in editor: {e}", exc_info=True)
-        from aqt.utils import showWarning
         showWarning(f"Failed to fill note:\n{str(e)}\n\nPlease check the Anki console for details.")
 
 
 def ai_fill_current_note(editor):
-    """Fill the current note using AI"""
+    """Fill the current note using AI - seamless interaction without dialogs"""
     import logging
     from .ai.client import OpenAIClient
     from .note_type import get_mapped_fields, get_word_from_note
-    from aqt.utils import showInfo
+    from aqt.utils import showWarning, tooltip
     from aqt.operations import QueryOp
-    
+
     logger = logging.getLogger(__name__)
-    
+
     try:
         if not editor.note:
-            showInfo("No note in editor.")
+            tooltip("No note in editor", parent=editor.widget)
             return
-            
+
         # Check configuration
         client = OpenAIClient()
         if not client.is_configured():
-            showInfo("OpenAI API Key is not configured.\nPlease go to Tools > EasyWords Configuration > AI Integration.")
+            showWarning("OpenAI API Key is not configured.\nPlease go to Tools > EasyWords Configuration > AI Integration.")
             return
-            
+
         mapping = get_mapped_fields(editor.note)
         if not mapping:
-            showInfo("This note type is not configured for EasyWords.")
+            tooltip("Note type not configured for EasyWords", parent=editor.widget)
             return
-            
+
         word = get_word_from_note(editor.note)
         if not word:
-            showInfo("Word field is empty.")
+            tooltip("Word field is empty", parent=editor.widget)
             return
-            
+
         # Determine fields to fill
         fields_to_fill = []
         target_fields = {} # mapped_name -> target_field
-        
+
         # Check Definition
         if 'Definition' in mapping:
             target = mapping['Definition']
-            # We can optionally overwrite or only fill if empty.
-            # For now, let's follow the standard behavior: fill if empty, or prompt?
-            # Let's fill if empty for now to be safe.
             if not editor.note[target]:
                 fields_to_fill.append("Definition")
                 target_fields['Definition'] = target
-                
+
         # Check Example
         if 'Example' in mapping:
             target = mapping['Example']
             if not editor.note[target]:
                 fields_to_fill.append("Example")
                 target_fields['Example'] = target
-                
+
         if not fields_to_fill:
-            showInfo("All mapped AI fields (Definition, Example) are already filled.")
+            tooltip("All AI fields already filled", parent=editor.widget)
             return
-            
-        showInfo("Asking AI...")
-        
+
+        # Show brief tooltip before starting
+        tooltip("AI filling...", parent=editor.widget)
+
         def _op(col):
             return client.suggest_fields(word, fields_to_fill)
-            
+
         def _success(result):
             if not result:
-                showInfo("AI request failed. Check console for details.")
+                tooltip("AI request failed - check console", parent=editor.widget)
+                logger.warning(f"AI returned empty result for word: {word}")
                 return
-                
+
             count = 0
             for field_name, content in result.items():
                 if field_name in target_fields:
                     target = target_fields[field_name]
                     editor.note[target] = content
                     count += 1
-            
+
             if count > 0:
                 editor.loadNote()
-                showInfo(f"AI filled {count} fields.")
+                tooltip(f"✓ Filled {count} field(s)", parent=editor.widget)
+                logger.info(f"Successfully filled {count} fields for word: {word}")
             else:
-                showInfo("AI returned no content.")
-                
+                tooltip("AI returned no content", parent=editor.widget)
+
         op = QueryOp(
             parent=mw,
             op=lambda col: _op(col),
             success=_success
         )
-        op.with_progress().run_in_background()
-        
+        op.run_in_background()
+
     except Exception as e:
         logger.error(f"AI fill failed: {e}", exc_info=True)
-        showInfo(f"Error: {str(e)}")
+        tooltip(f"Error: {str(e)}", parent=editor.widget)
 
 
 def fill_note_fields(note, flush=True):
@@ -512,12 +511,13 @@ def setup_browser_hooks():
 def batch_fill_cards(browser):
     """Open batch fill dialog"""
     from .gui.batch_dialog import BatchDialog
-    
+    from aqt.utils import tooltip
+
     selected_nids = browser.selectedNotes()
     if not selected_nids:
-        showInfo("Please select some cards first.")
+        tooltip("Please select some cards first", parent=browser)
         return
-    
+
     dialog = BatchDialog(browser, selected_nids)
     dialog.exec()
 
